@@ -81,5 +81,5 @@ def handle_server(server):
 
 def start_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(("", PORT))
+    server.bind((IP, PORT))
     handle_server(server)

@@ -1,7 +1,7 @@
-import struct
+import os, struct
 
-IP = "127.0.0.1"
-PORT = 33321
+IP = "0.0.0.0"
+PORT = int(os.environ.get('PORT') or "33321")
 BUFFER_SIZE = 1024
 FAILCHECK_ID = 121
 
