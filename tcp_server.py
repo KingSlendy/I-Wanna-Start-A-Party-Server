@@ -27,7 +27,10 @@ def send_buffer(buffer, socket, sanity = True):
     if int(buffer[4] + buffer[5]) == 15:
         print(buffer)
 
-    socket.send(buffer)
+    try:
+        socket.send(buffer)
+    except BrokenPipeError:
+        pass
 
 
 def handle_client(socket, address):
