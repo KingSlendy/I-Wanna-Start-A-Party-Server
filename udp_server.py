@@ -30,9 +30,9 @@ def send_buffer(server, buffer, address, sanity = True):
 
 
 def handle_buffer(server, buffer, address):
-    data_id = int(buffer[4] + buffer[5])
-    match data_id:
+    data_id = int.from_bytes(buffer[4:5], "little")
 
+    match data_id:
         case Client_UDP.Heartbeat:
             if address not in clients:
                 player_id = buffer[6]
@@ -48,15 +48,11 @@ def handle_buffer(server, buffer, address):
 
 
 def handle_server(server):
-    print(f"UDP server started on address: {IP}:{PORT}")
+    print(f"UDP server started on address: {(IP if IP != '' else 'localhost')}:{PORT}")
 
     try:
         while True:
             buffer, address = server.recvfrom(BUFFER_SIZE)
-
-            if not sanity_checks(buffer):
-                continue
-
             handle_buffer(server, buffer, address)
     except ConnectionResetError:
         print("UDP disconnection")

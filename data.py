@@ -1,8 +1,9 @@
 import os, struct
 
-IP = "0.0.0.0"
-PORT = int(os.environ.get('PORT') or "33321")
+IP = ""
+PORT = 33321
 BUFFER_SIZE = 1024
+# HEADER_SIZE = 12
 FAILCHECK_ID = 121
 
 # Buffer data types
@@ -48,21 +49,33 @@ class Buffer:
 
 main_buffer = Buffer()
 
-def sanity_checks(buffer):
-    if len(buffer) == 0:
-        return False
+def header_buffer_add(buffer):
+    if isinstance(buffer, Buffer):
+        buffer = bytes(buffer)
 
-    match_id = buffer[0]
+    buffer_size = len(buffer).to_bytes(4, "little")
+    header = bytes.fromhex("dec0adde0c000000") + buffer_size
+    return header + buffer
 
-    if match_id != FAILCHECK_ID:
-        return False
 
-    match_size = int(buffer[1] + buffer[2])
+# def sanity_checks(buffer):
+#     if len(buffer) == 0:
+#         print("Got empty buffer.")
+#         return False
 
-    if match_size != len(buffer):
-        return False
+#     match_id = buffer[0 + HEADER_SIZE]
 
-    return True
+#     if match_id != FAILCHECK_ID:
+#         print(f"Failcheck doesn't match.\nGot: {match_id}\nExpected: {FAILCHECK_ID}")
+#         return False
+
+#     match_size = int.from_bytes(buffer[1 + HEADER_SIZE:3 + HEADER_SIZE], "little")
+
+#     if match_size != len(buffer) - HEADER_SIZE:
+#         print(f"Expected size doesn't match.\nGot: {len(buffer)}\nExpected: {match_size}")
+#         return False
+
+#     return True
 
 
 def sanity_buffer_add(buffer, is_tcp):
