@@ -2,6 +2,9 @@ import os, struct
 
 IP = ""
 PORT = 33321
+tcp_clients = [None] * 4
+udp_clients = [None] * 4
+
 BUFFER_SIZE = 1024
 # HEADER_SIZE = 12
 FAILCHECK_ID = 121
@@ -56,26 +59,6 @@ def header_buffer_add(buffer):
     buffer_size = len(buffer).to_bytes(4, "little")
     header = bytes.fromhex("dec0adde0c000000") + buffer_size
     return header + buffer
-
-
-# def sanity_checks(buffer):
-#     if len(buffer) == 0:
-#         print("Got empty buffer.")
-#         return False
-
-#     match_id = buffer[0 + HEADER_SIZE]
-
-#     if match_id != FAILCHECK_ID:
-#         print(f"Failcheck doesn't match.\nGot: {match_id}\nExpected: {FAILCHECK_ID}")
-#         return False
-
-#     match_size = int.from_bytes(buffer[1 + HEADER_SIZE:3 + HEADER_SIZE], "little")
-
-#     if match_size != len(buffer) - HEADER_SIZE:
-#         print(f"Expected size doesn't match.\nGot: {len(buffer)}\nExpected: {match_size}")
-#         return False
-
-#     return True
 
 
 def sanity_buffer_add(buffer, is_tcp):

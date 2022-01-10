@@ -2,8 +2,6 @@ import socket, threading
 from data import *
 from enum import IntEnum
 
-clients = [None] * 4
-
 class Client_TCP(IntEnum):
     ReceiveID = 0
     PlayerConnect = 1
@@ -13,7 +11,7 @@ class Client_TCP(IntEnum):
 def send_buffer_all(buffer, socket, to_me = False, header = False):
     sanity_buffer_add(buffer, True)
 
-    for client in clients:
+    for client in tcp_clients:
         if client != None and (to_me or client != socket):
             send_buffer(buffer, client, sanity = False, header = header)
 
@@ -43,8 +41,8 @@ def handle_client(socket, address):
     send_buffer(magic_reply, socket)
 
     # Send back the ID to the connected client
-    player_id = clients.index(None)
-    clients[player_id] = socket
+    player_id = tcp_clients.index(None)
+    tcp_clients[player_id] = socket
     main_buffer.seek_begin()
     main_buffer.write_action(Client_TCP.ReceiveID)
     main_buffer.write(BUFFER_U8, player_id + 1)
@@ -71,7 +69,9 @@ def handle_client(socket, address):
         print(f"TCP disconnection with address: {address}")
 
     # Send back the ID of the disconnecting client
-    clients[clients.index(socket)] = None
+    disconnect_index = tcp_clients.index(socket)
+    tcp_clients[disconnect_index] = None
+    udp_clients[disconnect_index] = None
     main_buffer.seek_begin()
     main_buffer.write_action(Client_TCP.PlayerDisconnect)
     main_buffer.write(BUFFER_U8, player_id + 1)

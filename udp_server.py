@@ -2,8 +2,6 @@ import socket
 from data import *
 from enum import IntEnum
 
-clients = [None] * 4
-
 class Client_UDP(IntEnum):
     Heartbeat = 0
     PlayerMove = 1
@@ -14,7 +12,7 @@ class Client_UDP(IntEnum):
 def send_buffer_all(server, buffer, address, to_me = False):
     sanity_buffer_add(buffer, False)
 
-    for client in clients:
+    for client in udp_clients:
         if client != None and (to_me or client != address):
             send_buffer(server, buffer, client, sanity = False)
 
@@ -34,10 +32,9 @@ def handle_buffer(server, buffer, address):
 
     match data_id:
         case Client_UDP.Heartbeat:
-            if address not in clients:
+            if address not in udp_clients:
                 player_id = buffer[6]
-                clients[player_id - 1] = address
-                print(clients)
+                udp_clients[player_id - 1] = address
 
             main_buffer.seek_begin()
             main_buffer.write_action(Client_UDP.Heartbeat)
@@ -55,7 +52,7 @@ def handle_server(server):
             buffer, address = server.recvfrom(BUFFER_SIZE)
             handle_buffer(server, buffer, address)
     except ConnectionResetError:
-        print("UDP disconnection")
+        pass
 
 
 def start_server():
