@@ -2,8 +2,38 @@ import os, struct
 
 IP = ""
 PORT = 33321
-tcp_clients = [None] * 4
-udp_clients = [None] * 4
+
+class Lobby():
+    def __init__(self, name, password):
+        self.name = name
+        self.password = password
+        self.clients = []
+        self.started = False
+
+
+    def remove(self, c):
+        global lobbies
+
+        for i, client in enumerate(self.clients):
+            if client is c:
+                del self.clients[i]
+                break
+
+        if len(self.clients) == 0:
+            for spot, lobby in lobbies.items():
+                if self is lobby:
+                    del lobbies[spot]
+                    break
+
+
+    def __repr__(self):
+        return f"(Name: {repr(self.name)} | Password: {repr(self.password)} | Clients [{len(self.clients)}]: {self.clients})"
+
+
+clients = {}
+client_count = 1
+lobbies = {}
+lobby_count = 1
 
 BUFFER_SIZE = 1024
 # HEADER_SIZE = 12
@@ -13,6 +43,7 @@ FAILCHECK_ID = 121
 BUFFER_U8 = "B"
 BUFFER_U16 = "H"
 BUFFER_U32 = "I"
+BUFFER_U64 = "Q"
 BUFFER_S8 = "b"
 BUFFER_S16 = "h"
 BUFFER_S32 = "i"
@@ -30,6 +61,10 @@ class Buffer:
 
 
     def write(self, type, data, index = -1):
+        if type == BUFFER_STRING:
+            type = f"{len(data)}s"
+            data = data.encode("utf-8")
+
         if index == -1:
             self.types.append(type)
             self.data.append(data)
@@ -50,14 +85,19 @@ class Buffer:
         return len(bytes(self))
 
 
-main_buffer = Buffer()
+    def __repr__(self):
+        return f"Data: {self.data} | Types: {self.types}"
+
+
+main_buffer_tcp = Buffer()
+main_buffer_udp = Buffer()
 
 def header_buffer_add(buffer):
     if isinstance(buffer, Buffer):
         buffer = bytes(buffer)
 
     buffer_size = len(buffer).to_bytes(4, "little")
-    header = bytes.fromhex("dec0adde0c000000") + buffer_size
+    header = bytes.fromhex("DEC0ADDE0C000000") + buffer_size
     return header + buffer
 
 

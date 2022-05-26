@@ -2,19 +2,25 @@ import socket
 from data import *
 from enum import IntEnum
 
-class Client_UDP(IntEnum):
+class ClientUDP(IntEnum):
     Heartbeat = 0
-    PlayerMove = 1
-    LessRoll = 2
-    SendSound = 3
 
 
 def send_buffer_all(server, buffer, address, to_me = False):
-    sanity_buffer_add(buffer, False)
+    global clients
 
-    for client in udp_clients:
-        if client != None and (to_me or client != address):
-            send_buffer(server, buffer, client, sanity = False)
+    for client in clients.values():
+        if client.address == address:
+            if client.lobby == None:
+                return
+
+            sanity_buffer_add(buffer, True)
+
+            for c in client.lobby.clients:
+                if to_me or c.address != address:
+                    send_buffer(server, buffer, c.address, sanity = False)
+
+            break
 
 
 def send_buffer(server, buffer, address, sanity = True):
@@ -28,17 +34,19 @@ def send_buffer(server, buffer, address, sanity = True):
 
 
 def handle_buffer(server, buffer, address):
-    data_id = int.from_bytes(buffer[4:5], "little")
+    global clients
+
+    data_id = int.from_bytes(buffer[4:6], "little")
 
     match data_id:
-        case Client_UDP.Heartbeat:
-            if address not in udp_clients:
-                player_id = buffer[6]
-                udp_clients[player_id - 1] = address
+        case ClientUDP.Heartbeat:
+            if address not in [client.address for client in clients.values()]:
+                client_id = int.from_bytes(buffer[6:14], "little")
+                clients[client_id].address = address
 
-            main_buffer.seek_begin()
-            main_buffer.write_action(Client_UDP.Heartbeat)
-            send_buffer(server, main_buffer, address)
+            main_buffer_udp.seek_begin()
+            main_buffer_udp.write_action(ClientUDP.Heartbeat)
+            send_buffer(server, main_buffer_udp, address)
 
         case _:
             send_buffer_all(server, buffer, address)
