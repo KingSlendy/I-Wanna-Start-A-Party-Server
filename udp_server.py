@@ -3,7 +3,8 @@ from data import *
 from enum import IntEnum
 
 class ClientUDP(IntEnum):
-    Heartbeat = 0
+    Initialize = 0
+    Heartbeat = 1
 
 
 def send_buffer_all(server, buffer, address, to_me = False):
@@ -17,7 +18,7 @@ def send_buffer_all(server, buffer, address, to_me = False):
             sanity_buffer_add(buffer, True)
 
             for c in client.lobby.clients:
-                if to_me or c.address != address:
+                if c != None and (to_me or c.address != address):
                     send_buffer(server, buffer, c.address, sanity = False)
 
             break
@@ -39,11 +40,15 @@ def handle_buffer(server, buffer, address):
     data_id = int.from_bytes(buffer[4:6], "little")
 
     match data_id:
-        case ClientUDP.Heartbeat:
-            if address not in [client.address for client in clients.values()]:
-                client_id = int.from_bytes(buffer[6:14], "little")
-                clients[client_id].address = address
+        case ClientUDP.Initialize:
+            client_id = int.from_bytes(buffer[6:14], "little")
+            clients[client_id].address = address
+            print(f"Client connected: {address}")
+            main_buffer_udp.seek_begin()
+            main_buffer_udp.write_action(ClientUDP.Initialize)
+            send_buffer(server, main_buffer_udp, address)
 
+        case ClientUDP.Heartbeat:
             main_buffer_udp.seek_begin()
             main_buffer_udp.write_action(ClientUDP.Heartbeat)
             send_buffer(server, main_buffer_udp, address)

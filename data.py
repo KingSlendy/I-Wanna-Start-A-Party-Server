@@ -7,7 +7,7 @@ class Lobby():
     def __init__(self, name, password):
         self.name = name
         self.password = password
-        self.clients = []
+        self.clients = [None] * 4
         self.started = False
 
 
@@ -17,13 +17,18 @@ class Lobby():
         for i, client in enumerate(self.clients):
             if client is c:
                 del self.clients[i]
+                self.clients.append(None)
                 break
 
-        if len(self.clients) == 0:
-            for spot, lobby in lobbies.items():
-                if self is lobby:
-                    del lobbies[spot]
-                    break
+        if self.clients.count(None) == len(self.clients):
+            self.delete()
+
+    
+    def delete(self):
+        for spot, lobby in lobbies.items():
+            if self is lobby:
+                del lobbies[spot]
+                break
 
 
     def __repr__(self):

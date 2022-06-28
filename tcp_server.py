@@ -18,13 +18,6 @@ class Client():
     def free(self):
         if self.lobby != None:
             self.lobby.remove(self)
-
-            for i, client in enumerate(self.lobby.clients):
-                main_buffer_tcp.seek_begin()
-                main_buffer_tcp.write_action(ClientTCP.ResendID)
-                main_buffer_tcp.write(BUFFER_U8, i + 1)
-                send_buffer(main_buffer_tcp, client.socket)
-
             self.lobby = None
 
     
@@ -35,14 +28,13 @@ class Client():
 class ClientTCP(IntEnum):
     ReceiveMasterID = 0
     ReceiveID = 1
-    ResendID = 2
-    PlayerConnect = 3
-    PlayerDisconnect = 4
-    CreateLobby = 5
-    JoinLobby = 6
-    LeaveLobby = 7
-    LobbyList = 8
-    LobbyStart = 9
+    PlayerConnect = 2
+    PlayerDisconnect = 3
+    CreateLobby = 4
+    JoinLobby = 5
+    LeaveLobby = 6
+    LobbyList = 7
+    LobbyStart = 8
 
 
 def send_buffer_all(buffer, socket, to_me = False, sanity = True, header = True):
@@ -57,7 +49,7 @@ def send_buffer_all(buffer, socket, to_me = False, sanity = True, header = True)
                 sanity_buffer_add(buffer, True)
 
             for c in client.lobby.clients:
-                if to_me or c.socket != socket:
+                if c != None and (to_me or c.socket != socket):
                     send_buffer(buffer, c.socket, sanity = False, header = header)
 
             break
@@ -110,7 +102,7 @@ def handle_buffer(buffer, socket):
 
             if not same_name:
                 lobbies[lobby_count] = lobby
-                lobby.clients.append(client)
+                lobby.clients[0] = client
                 client.lobby = lobby
                 #print(lobbies)
                 lobby_count += 1
@@ -127,7 +119,7 @@ def handle_buffer(buffer, socket):
 
             for lobby in lobbies.values():
                 if lobby.name == name and (lobby.password == password or lobby.password == HASH_EMPTY_PASSWORD):
-                    if len(lobby.clients) == 4:
+                    if lobby.clients.count(None) == 0:
                         state = 2
                         break
 
@@ -135,7 +127,7 @@ def handle_buffer(buffer, socket):
                         state = 3
                         break
 
-                    lobby.clients.append(client)
+                    lobby.clients[lobby.clients.index(None)] = client
                     client.lobby = lobby
                     state = 1
                     break
@@ -147,9 +139,12 @@ def handle_buffer(buffer, socket):
 
         case ClientTCP.LeaveLobby:
             client = clients[int.from_bytes(buffer[18:26], "little")]
+            client_id = client.lobby.clients.index(client)
+            del client.lobby.clients[client_id]
+            client.lobby.clients.append(None)
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(ClientTCP.PlayerDisconnect)
-            main_buffer_tcp.write(BUFFER_U8, client.lobby.clients.index(client) + 1)
+            main_buffer_tcp.write(BUFFER_U8, client_id + 1)
             send_buffer_all(main_buffer_tcp, socket)
 
             client.free()
@@ -162,7 +157,7 @@ def handle_buffer(buffer, socket):
             main_buffer_tcp.write_action(data_id)
 
             for lobby in lobbies.values():
-                main_buffer_tcp.write(BUFFER_STRING, f"{lobby.name}|{(lobby.password != HASH_EMPTY_PASSWORD)}|{len(lobby.clients)}|{lobby.started}.")
+                main_buffer_tcp.write(BUFFER_STRING, f"{lobby.name}|{(lobby.password != HASH_EMPTY_PASSWORD)}|{len(lobby.clients) - lobby.clients.count(None)}|{lobby.started}.")
 
             main_buffer_tcp.write(BUFFER_STRING, "null")
             send_buffer(main_buffer_tcp, socket)
@@ -178,10 +173,36 @@ def handle_buffer(buffer, socket):
             send_buffer_all(buffer, socket, sanity = False, header = False)
 
 
+def disconnect_client(socket = None, address = None):
+    for spot, client in clients.items():
+        if (socket != None and client.socket != None and client.socket == socket) or (address != None and client.address != None and client.address[0] == address[0]):
+            if client.lobby != None:
+                main_buffer_tcp.seek_begin()
+                main_buffer_tcp.write_action(ClientTCP.PlayerDisconnect)
+                main_buffer_tcp.write(BUFFER_U8, client.lobby.clients.index(client) + 1)
+                send_buffer_all(main_buffer_tcp, socket)
+
+            client.free()
+            print(f"Client disconnected: {client.address}")
+            del clients[spot]
+            break
+
+    #cleanup_lobbies()
+
+
+def cleanup_lobbies():
+    client_addresses = [client.address for client in clients.values() if client.address != None]
+
+    for lobby in lobbies:
+        for client in lobby.clients:
+            if client.address != None and client.address not in client_addresses:
+                lobby.delete()
+
+
 def handle_client(socket, address):
     global clients, client_count, lobbies
 
-    print(f"TCP connection with address: {address}")
+    #cleanup_lobbies()
 
     # Handshake start
     socket.send(HANDSHAKE_BEGIN)
@@ -193,7 +214,10 @@ def handle_client(socket, address):
     # Handshake response
     send_buffer(HANDSHAKE_RESPONSE, socket, header = False)
 
-    # Send back the ID to the connected client
+    # Check this in case a previous disconnection didn't trigger
+    disconnect_client(address = address)
+
+    # Send back the master ID to the connected client
     clients[client_count] = Client(socket)
     main_buffer_tcp.seek_begin()
     main_buffer_tcp.write_action(ClientTCP.ReceiveMasterID)
@@ -211,24 +235,11 @@ def handle_client(socket, address):
 
             handle_buffer(buffer, socket)
     except ConnectionResetError:
-        print(f"TCP disconnection with address: {address}")
+        pass
 
-    # Send back the ID of the disconnecting client
-
-    for spot, client in clients.items():
-        if client.socket == socket:
-            if client.lobby != None:
-                main_buffer_tcp.seek_begin()
-                main_buffer_tcp.write_action(ClientTCP.PlayerDisconnect)
-                main_buffer_tcp.write(BUFFER_U8, client.lobby.clients.index(client) + 1)
-                send_buffer_all(main_buffer_tcp, socket)
-
-            client.free()
-            del clients[spot]
-            break
-
+    # Client was left the server, disconnect
+    disconnect_client(socket = socket)
     socket.close()
-    #print(clients)
     #print(lobbies)
 
 
