@@ -1,12 +1,12 @@
-import tcp_server, threading, udp_server
+import asyncio, threading, tcp_server, udp_server
 
-def main():
-    tcp_thread = threading.Thread(target = tcp_server.start_server)
-    tcp_thread.start()
-
-    udp_thread = threading.Thread(target = udp_server.start_server)
-    udp_thread.start()
+async def main():
+    #await asyncio.gather(tcp_server.start_server(), udp_server.start_server())
+    thread = threading.Thread(target = udp_server.start_server)
+    thread.start()
+    
+    await tcp_server.start_server()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

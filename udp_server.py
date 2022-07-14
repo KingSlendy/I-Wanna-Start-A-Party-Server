@@ -57,18 +57,14 @@ def handle_buffer(server, buffer, address):
             send_buffer_all(server, buffer, address)
 
 
-def handle_server(server):
-    print(f"UDP server started on address: {(IP if IP != '' else 'localhost')}:{PORT}")
-
-    try:
-        while True:
-            buffer, address = server.recvfrom(BUFFER_SIZE)
-            handle_buffer(server, buffer, address)
-    except ConnectionResetError:
-        pass
-
-
 def start_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server.bind((IP, PORT))
-    handle_server(server)
+    print(f"UDP server started on address: {(IP if IP != '' else 'localhost')}:{PORT}")
+
+    while True:
+        try:
+            buffer, address = server.recvfrom(BUFFER_SIZE)
+            handle_buffer(server, buffer, address)
+        except:
+            pass
