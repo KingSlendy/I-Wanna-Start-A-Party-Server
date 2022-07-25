@@ -3,6 +3,9 @@ from tcp_server import *
 from enum import IntEnum
 
 PORT = 33320
+VERSION = ""
+SIZE = 0
+LINES = []
 
 class ClientVER(IntEnum):
     SendVersion = 0
@@ -20,7 +23,28 @@ async def send_buffer(buffer, writer: asyncio.StreamWriter, header = True):
     await writer.drain()
 
 
+def detect_version():
+    global VERSION, SIZE, LINES
+
+    filename = [f for f in os.listdir(".") if f.endswith(".zip")][0]
+    version = filename[:-4]
+
+    if VERSION != version:
+        VERSION = version
+
+        with open(filename, "rb") as file:
+            SIZE = len(file.read())
+
+        LINES = []
+
+        with open(filename, "rb") as file:
+            for line in file:
+                LINES.append(line)
+
+
 async def handle_version(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+    global VERSION, LINES
+    
     # Handshake start
     writer.write(HANDSHAKE_BEGIN)
     await writer.drain()
@@ -33,59 +57,34 @@ async def handle_version(reader: asyncio.StreamReader, writer: asyncio.StreamWri
 
     # Handshake response
     await send_buffer(HANDSHAKE_RESPONSE, writer, header = False)
-
-    filename = [f for f in os.listdir(".") if f.endswith(".zip")][0]
-
-    with open(filename, "rb") as file:
-        binary = file.read()
+    detect_version()
 
     main_buffer_ver.seek_begin()
     main_buffer_ver.write_action(ClientVER.SendVersion)
-    main_buffer_ver.write(BUFFER_U64, len(binary))
-    main_buffer_ver.write(BUFFER_STRING, filename[:-4])
+    main_buffer_ver.write(BUFFER_U64, SIZE)
+    main_buffer_ver.write(BUFFER_STRING, VERSION)
     await send_buffer(main_buffer_ver, writer)
-
-    #index = 0
 
     try:
         lines = 0
 
-        with open(filename, "rb") as file:
-            for line in file:
-                if lines == 0:
-                    main_buffer_ver.seek_begin()
-                    main_buffer_ver.write_action(ClientVER.Executable)
+        for line in LINES:
+            if lines == 0:
+                main_buffer_ver.seek_begin()
+                main_buffer_ver.write_action(ClientVER.Executable)
 
-                for byte in line:
-                    main_buffer_ver.write(BUFFER_U8, byte)
-                
-                lines += 1
+            for byte in line:
+                main_buffer_ver.write(BUFFER_U8, byte)
 
-                if lines == 3_000:
-                    await send_buffer(main_buffer_ver, writer)
-                    await asyncio.sleep(0.1)
-                    lines = 0
+            lines += 1
 
-            if lines < 3_000:
+            if lines == 1500:
                 await send_buffer(main_buffer_ver, writer)
+                await asyncio.sleep(0.1)
+                lines = 0
 
-        #while True:
-        #    main_buffer_ver.seek_begin()
-        #    main_buffer_ver.write_action(ClientVER.Executable)
-
-        #    for _ in range(5000):
-        #        data = binary[index:index + 8]
-
-        #        if data == b"":
-        #            print("Done")
-        #            await send_buffer(main_buffer_ver, writer)
-        #            raise ConnectionResetError()
-
-        #        main_buffer_ver.write(BUFFER_U64, int.from_bytes(data, "little"))
-        #        index += 8
-
-        #    await send_buffer(main_buffer_ver, writer)
-        #    await asyncio.sleep(1)
+        if lines < 1500:
+            await send_buffer(main_buffer_ver, writer)
     except ConnectionResetError:
         pass
 
@@ -93,6 +92,7 @@ async def handle_version(reader: asyncio.StreamReader, writer: asyncio.StreamWri
 
 
 async def start_server():
+    detect_version()
     server = await asyncio.start_server(handle_version, IP, VER_PORT)
     print(f"VER server started on address: {(IP if IP != '' else 'localhost')}:{VER_PORT}")
 
