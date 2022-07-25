@@ -1,7 +1,11 @@
 import os, struct
 
 IP = ""
-PORT = 33321
+MAIN_PORT = 33321
+VER_PORT = 33320
+HANDSHAKE_BEGIN = b"GM:Studio-Connect\x00"
+HANDSHAKE_ENSURE = b"\xBE\xBA\xFE\xCA\x0B\xB0\xAD\xDE"
+HANDSHAKE_RESPONSE = b"\xAD\xBE\xAF\xDE\xEB\xBE\x0D\xF0\x0C\x00\x00\x00"
 
 class Lobby():
     def __init__(self, name, password):
@@ -96,6 +100,7 @@ class Buffer:
 
 main_buffer_tcp = Buffer()
 main_buffer_udp = Buffer()
+main_buffer_ver = Buffer()
 
 def header_buffer_add(buffer):
     if isinstance(buffer, Buffer):

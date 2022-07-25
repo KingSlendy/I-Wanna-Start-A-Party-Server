@@ -2,9 +2,6 @@ import asyncio
 from data import *
 from enum import IntEnum
 
-HANDSHAKE_BEGIN = b"GM:Studio-Connect\x00"
-HANDSHAKE_ENSURE = b"\xBE\xBA\xFE\xCA\x0B\xB0\xAD\xDE"
-HANDSHAKE_RESPONSE = b"\xAD\xBE\xAF\xDE\xEB\xBE\x0D\xF0\x0C\x00\x00\x00"
 HASH_EMPTY_PASSWORD = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
 
 class Client():
@@ -248,8 +245,8 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
 
 async def start_server():
-    server = await asyncio.start_server(handle_client, IP, PORT)
-    print(f"TCP server started on address: {(IP if IP != '' else 'localhost')}:{PORT}")
+    server = await asyncio.start_server(handle_client, IP, MAIN_PORT)
+    print(f"TCP server started on address: {(IP if IP != '' else 'localhost')}:{MAIN_PORT}")
 
     async with server:
         await server.serve_forever()

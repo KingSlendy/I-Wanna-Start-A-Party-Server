@@ -59,8 +59,8 @@ def handle_buffer(server, buffer, address):
 
 def start_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    server.bind((IP, PORT))
-    print(f"UDP server started on address: {(IP if IP != '' else 'localhost')}:{PORT}")
+    server.bind((IP, MAIN_PORT))
+    print(f"UDP server started on address: {(IP if IP != '' else 'localhost')}:{MAIN_PORT}")
 
     while True:
         try:
