@@ -71,8 +71,10 @@ class Buffer:
 
     def write(self, type, data, index = -1):
         if type == BUFFER_STRING:
+            if not isinstance(data, bytes):
+                data = data.encode("utf-8")
+
             type = f"{len(data)}s"
-            data = data.encode("utf-8")
 
         if index == -1:
             self.types.append(type)

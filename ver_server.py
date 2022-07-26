@@ -5,7 +5,8 @@ from enum import IntEnum
 PORT = 33320
 VERSION = ""
 SIZE = 0
-LINES = []
+BYTES = None
+SEND_SIZE = 500_000
 
 class ClientVER(IntEnum):
     SendVersion = 0
@@ -24,7 +25,7 @@ async def send_buffer(buffer, writer: asyncio.StreamWriter, header = True):
 
 
 def detect_version():
-    global VERSION, SIZE, LINES
+    global VERSION, SIZE, BYTES
 
     filename = [f for f in os.listdir(".") if f.endswith(".zip")][0]
     version = filename[:-4]
@@ -33,17 +34,12 @@ def detect_version():
         VERSION = version
 
         with open(filename, "rb") as file:
-            SIZE = len(file.read())
-
-        LINES = []
-
-        with open(filename, "rb") as file:
-            for line in file:
-                LINES.append(line)
+            BYTES = file.read()
+            SIZE = len(BYTES)
 
 
 async def handle_version(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-    global VERSION, LINES
+    global VERSION, SIZE, BYTES
     
     # Handshake start
     writer.write(HANDSHAKE_BEGIN)
@@ -63,28 +59,16 @@ async def handle_version(reader: asyncio.StreamReader, writer: asyncio.StreamWri
     main_buffer_ver.write_action(ClientVER.SendVersion)
     main_buffer_ver.write(BUFFER_U64, SIZE)
     main_buffer_ver.write(BUFFER_STRING, VERSION)
+    main_buffer_ver.write(BUFFER_U8, 0)
     await send_buffer(main_buffer_ver, writer)
 
     try:
-        lines = 0
-
-        for line in LINES:
-            if lines == 0:
-                main_buffer_ver.seek_begin()
-                main_buffer_ver.write_action(ClientVER.Executable)
-
-            for byte in line:
-                main_buffer_ver.write(BUFFER_U8, byte)
-
-            lines += 1
-
-            if lines == 1500:
-                await send_buffer(main_buffer_ver, writer)
-                await asyncio.sleep(0.1)
-                lines = 0
-
-        if lines < 1500:
+        for i in range(0, SIZE, SEND_SIZE):
+            main_buffer_ver.seek_begin()
+            main_buffer_ver.write_action(ClientVER.Executable)
+            main_buffer_ver.write(BUFFER_STRING, BYTES[i:i + SEND_SIZE])
             await send_buffer(main_buffer_ver, writer)
+            #await asyncio.sleep(1)
     except ConnectionResetError:
         pass
 
