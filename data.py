@@ -3,9 +3,9 @@ import os, struct
 IP = ""
 MAIN_PORT = 33321
 VER_PORT = 33320
-HANDSHAKE_BEGIN = b"GM:Studio-Connect\x00"
-HANDSHAKE_ENSURE = b"\xBE\xBA\xFE\xCA\x0B\xB0\xAD\xDE"
-HANDSHAKE_RESPONSE = b"\xAD\xBE\xAF\xDE\xEB\xBE\x0D\xF0\x0C\x00\x00\x00"
+HANDSHAKE_BEGIN = b"GM:Studio-Connect\x00" # Server
+HANDSHAKE_ENSURE = b"\xBE\xBA\xFE\xCA\x0B\xB0\xAD\xDE" # Client
+HANDSHAKE_RESPONSE = b"\xAD\xBE\xAF\xDE\xEB\xBE\x0D\xF0\x0C\x00\x00\x00" # Server
 
 class Lobby():
     def __init__(self, name, password):
