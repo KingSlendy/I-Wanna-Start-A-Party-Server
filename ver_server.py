@@ -55,7 +55,7 @@ async def handle_version(_: asyncio.StreamReader, writer: asyncio.StreamWriter):
 
 async def start_server():
     detect_version()
-    server = await asyncio.start_server(handle_version, IP, VER_PORT, limit=1024)
+    server = await asyncio.start_server(handle_version, IP, VER_PORT)
     print(f"VER server started on address: {(IP if IP != '' else 'localhost')}:{VER_PORT}")
 
     async with server:
