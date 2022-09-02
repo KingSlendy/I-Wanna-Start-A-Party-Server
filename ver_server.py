@@ -4,8 +4,6 @@ from enum import IntEnum
 
 PORT = 33320
 VERSION = ""
-SIZE = 0
-BYTES = None
 
 class ClientVER(IntEnum):
     SendVersion = 0
@@ -19,33 +17,23 @@ async def send_buffer(buffer, writer: asyncio.StreamWriter):
 
 
 def detect_version():
-    global VERSION, SIZE, BYTES
+    global VERSION
 
-    filename = [f for f in os.listdir(".") if f.endswith(".zip")][0]
-    version = filename[:-4]
-
-    if VERSION != version:
-        VERSION = version
-
-        with open(filename, "rb") as file:
-            BYTES = file.read()
-            SIZE = len(BYTES)
+    try:
+        filename = [f for f in os.listdir(".") if f.endswith(".ver")][0]
+        VERSION = filename[:-4]
+    except:
+        pass
 
 
 async def handle_version(_: asyncio.StreamReader, writer: asyncio.StreamWriter):
-    global VERSION, SIZE, BYTES
+    global VERSION
 
     detect_version()
 
     try:
         main_buffer_ver.seek_begin()
         main_buffer_ver.write(BUFFER_STRING, VERSION)
-        main_buffer_ver.write(BUFFER_U8, 0)
-        main_buffer_ver.write(BUFFER_U64, SIZE)
-        await send_buffer(main_buffer_ver, writer)
-
-        main_buffer_ver.seek_begin()
-        main_buffer_ver.write(BUFFER_STRING, BYTES)
         await send_buffer(main_buffer_ver, writer)
     except ConnectionResetError:
         pass
