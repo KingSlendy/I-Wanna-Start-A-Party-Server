@@ -1,4 +1,4 @@
-import os, struct
+import random, struct, sys
 
 IP = ""
 MAIN_PORT = 33321
@@ -13,6 +13,7 @@ class Lobby():
         self.password = password
         self.clients = [None] * 4
         self.started = False
+        self.seed = random.randint(0, sys.maxsize)
 
 
     def remove(self, c):

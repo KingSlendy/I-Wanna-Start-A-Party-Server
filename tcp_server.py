@@ -107,6 +107,7 @@ async def handle_buffer(buffer, writer: asyncio.StreamWriter):
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(data_id)
             main_buffer_tcp.write(BUFFER_BOOL, same_name)
+            main_buffer_tcp.write(BUFFER_U64, lobby.seed)
             await send_buffer(main_buffer_tcp, writer)
 
         case ClientTCP.JoinLobby:
@@ -132,6 +133,7 @@ async def handle_buffer(buffer, writer: asyncio.StreamWriter):
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(data_id)
             main_buffer_tcp.write(BUFFER_U8, state)
+            main_buffer_tcp.write(BUFFER_U64, lobby.seed)
             await send_buffer(main_buffer_tcp, writer)
 
         case ClientTCP.LeaveLobby:
