@@ -1,4 +1,4 @@
-import random, struct, sys
+import random, struct, sys, threading, time
 
 IP = ""
 MAIN_PORT = 33321
@@ -14,6 +14,20 @@ class Lobby():
         self.clients = [None] * 4
         self.started = False
         self.seed = random.randint(0, sys.maxsize)
+        self.heartbeats = 1
+        self.thread = threading.Thread(target = self.ensure)
+        self.thread.start()
+
+
+    def ensure(self):
+        time.sleep(30)
+
+        if self.heartbeats <= 0:
+            self.delete()
+            return
+
+        self.heartbeats -= 1
+        self.ensure()
 
 
     def remove(self, c):

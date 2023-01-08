@@ -49,6 +49,8 @@ def handle_buffer(server, buffer, address):
             send_buffer(server, main_buffer_udp, address)
 
         case ClientUDP.Heartbeat:
+            client_id = int.from_bytes(buffer[6:14], "little")
+            clients[client_id].lobby.heartbeats += 1
             main_buffer_udp.seek_begin()
             main_buffer_udp.write_action(ClientUDP.Heartbeat)
             send_buffer(server, main_buffer_udp, address)
