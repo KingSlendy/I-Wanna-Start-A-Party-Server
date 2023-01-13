@@ -139,14 +139,12 @@ async def handle_buffer(buffer, writer: asyncio.StreamWriter):
         case ClientTCP.LeaveLobby:
             client = clients[int.from_bytes(buffer[18:26], "little")]
             client_id = client.lobby.clients.index(client)
-            del client.lobby.clients[client_id]
-            client.lobby.clients.append(None)
+            client.free()
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(ClientTCP.PlayerDisconnect)
             main_buffer_tcp.write(BUFFER_U8, client_id + 1)
             await send_buffer_all(main_buffer_tcp, writer)
 
-            client.free()
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(data_id)
             await send_buffer(main_buffer_tcp, writer)
@@ -185,11 +183,12 @@ async def connect_client(writer: asyncio.StreamWriter):
 
 async def disconnect_client(writer: asyncio.StreamWriter):
     for spot, client in clients.items():
-        if client.writer != None and client.writer == writer:
+        if client.writer != None and client.writer is writer:
             if client.lobby != None:
+                client_id = client.lobby.clients.index(client)
                 main_buffer_tcp.seek_begin()
                 main_buffer_tcp.write_action(ClientTCP.PlayerDisconnect)
-                main_buffer_tcp.write(BUFFER_U8, client.lobby.clients.index(client) + 1)
+                main_buffer_tcp.write(BUFFER_U8, client_id + 1)
                 await send_buffer_all(main_buffer_tcp, writer)
 
             client.free()
@@ -197,22 +196,9 @@ async def disconnect_client(writer: asyncio.StreamWriter):
             del clients[spot]
             break
 
-    #cleanup_lobbies()
-
-
-def cleanup_lobbies():
-    client_addresses = [client.address for client in clients.values() if client.address != None]
-
-    for lobby in lobbies:
-        for client in lobby.clients:
-            if client.address != None and client.address not in client_addresses:
-                lobby.delete()
-
 
 async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     global clients, lobbies
-
-    #cleanup_lobbies()
 
     # Handshake start
     writer.write(HANDSHAKE_BEGIN)
@@ -232,16 +218,16 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
     try:
         while True:
-            buffer = await reader.read(BUFFER_SIZE)
+            buffer = await asyncio.wait_for(reader.read(BUFFER_SIZE), 30)
 
-            if buffer == b"":
+            if buffer == b"" or not buffer:
                 break
 
             await handle_buffer(buffer, writer)
-    except ConnectionResetError:
+    except ConnectionError:
         pass
 
-    # Client was left the server, disconnect
+    # Client has left the server, disconnect
     await disconnect_client(writer = writer)
     writer.close()
 

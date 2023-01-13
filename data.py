@@ -14,30 +14,16 @@ class Lobby():
         self.clients = [None] * 4
         self.started = False
         self.seed = random.randint(0, sys.maxsize)
-        self.heartbeats = 1
-        self.thread = threading.Thread(target = self.ensure)
-        self.thread.start()
-
-
-    def ensure(self):
-        time.sleep(30)
-
-        if self.heartbeats <= 0:
-            self.delete()
-            return
-
-        self.heartbeats -= 1
-        self.ensure()
 
 
     def remove(self, c):
         global lobbies
 
-        for i, client in enumerate(self.clients):
-            if client is c:
-                del self.clients[i]
-                self.clients.append(None)
-                break
+        index = self.clients.index(c)
+
+        if index != -1:
+            del self.clients[index]
+            self.clients.append(None)
 
         if self.clients.count(None) == len(self.clients):
             self.delete()

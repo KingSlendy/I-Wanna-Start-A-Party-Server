@@ -50,10 +50,11 @@ def handle_buffer(server, buffer, address):
 
         case ClientUDP.Heartbeat:
             client_id = int.from_bytes(buffer[6:14], "little")
-            clients[client_id].lobby.heartbeats += 1
-            main_buffer_udp.seek_begin()
-            main_buffer_udp.write_action(ClientUDP.Heartbeat)
-            send_buffer(server, main_buffer_udp, address)
+
+            if client_id in clients:
+                main_buffer_udp.seek_begin()
+                main_buffer_udp.write_action(ClientUDP.Heartbeat)
+                send_buffer(server, main_buffer_udp, address)
 
         case _:
             send_buffer_all(server, buffer, address)
@@ -68,5 +69,5 @@ def start_server():
         try:
             buffer, address = server.recvfrom(BUFFER_SIZE)
             handle_buffer(server, buffer, address)
-        except:
+        except ConnectionError:
             pass
