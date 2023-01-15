@@ -139,11 +139,11 @@ async def handle_buffer(buffer, writer: asyncio.StreamWriter):
         case ClientTCP.LeaveLobby:
             client = clients[int.from_bytes(buffer[18:26], "little")]
             client_id = client.lobby.clients.index(client)
-            client.free()
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(ClientTCP.PlayerDisconnect)
             main_buffer_tcp.write(BUFFER_U8, client_id + 1)
             await send_buffer_all(main_buffer_tcp, writer)
+            client.free()
 
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(data_id)
@@ -218,7 +218,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
     try:
         while True:
-            buffer = await asyncio.wait_for(reader.read(BUFFER_SIZE), 30)
+            buffer = await reader.read(BUFFER_SIZE)
 
             if buffer == b"" or not buffer:
                 break
