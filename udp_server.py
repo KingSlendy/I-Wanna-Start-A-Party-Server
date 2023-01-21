@@ -41,9 +41,9 @@ def handle_buffer(server, buffer, address):
 
     match data_id:
         case ClientUDP.Initialize:
-            client_id = int.from_bytes(buffer[6:14], "little")
-            clients[client_id].address = address
-            print(f"Client connected: {address}")
+            client = clients[int.from_bytes(buffer[6:14], "little")]
+            client.address = address
+            print(f"Client connected: {client}")
             main_buffer_udp.seek_begin()
             main_buffer_udp.write_action(ClientUDP.Initialize)
             send_buffer(server, main_buffer_udp, address)

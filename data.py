@@ -1,4 +1,4 @@
-import random, struct, sys, threading, time
+import random, struct, sys
 
 IP = ""
 MAIN_PORT = 33321
@@ -14,6 +14,15 @@ class Lobby():
         self.clients = [None] * 4
         self.started = False
         self.seed = random.randint(0, sys.maxsize)
+
+
+    def client_names(self):
+        names = []
+
+        for c in self.clients:
+            names.append((c.name if c is not None else "") + "\x00")
+
+        return names
 
 
     def remove(self, c):
