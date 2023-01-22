@@ -11,15 +11,52 @@ class Client():
         self.name = ""
         self.lobby = None
 
-
-    def free(self):
-        if self.lobby != None:
-            self.lobby.remove(self)
-            self.lobby = None
-
     
     def __repr__(self):
-        return f"[Address: {self.address} | Name: {self.name} | Lobby: {self.lobby}]"
+        return f"[Address: {self.address} | Name: {self.name}]"
+
+
+class Lobby():
+    def __init__(self, name, password):
+        self.name = name
+        self.password = password
+        self.clients = [None] * 4
+        self.started = False
+        self.seed = random.randint(0, sys.maxsize)
+
+
+    async def update(self, writer: asyncio.StreamWriter, to_me = False):
+        main_buffer_tcp.seek_begin()
+        main_buffer_tcp.write_action(ClientTCP.LobbyUpdate)
+
+        for c in self.clients:
+            main_buffer_tcp.write(BUFFER_STRING, (c.name if c is not None else "") + "\x00")
+
+        await send_buffer_all(main_buffer_tcp, writer, to_me = to_me)
+
+
+    def remove(self, c):
+        global lobbies
+
+        index = self.clients.index(c)
+
+        if index != -1:
+            del self.clients[index]
+            self.clients.append(None)
+
+        if self.clients.count(None) == len(self.clients):
+            self.delete()
+
+    
+    def delete(self):
+        for spot, lobby in lobbies.items():
+            if self is lobby:
+                del lobbies[spot]
+                break
+
+
+    def __repr__(self):
+        return f"(Name: {repr(self.name)} | Password: {repr(self.password)} | Clients [{len(self.clients)}]: {self.clients})"
 
 
 class ClientTCP(IntEnum):
@@ -33,7 +70,7 @@ class ClientTCP(IntEnum):
     JoinLobby = 7
     LeaveLobby = 8
     LobbyList = 9
-    LobbyPlayers = 10
+    LobbyUpdate = 10
     LobbyStart = 11
 
 
@@ -95,14 +132,7 @@ async def handle_buffer(buffer, writer: asyncio.StreamWriter):
             main_buffer_tcp.write(BUFFER_U8, client_id)
             main_buffer_tcp.write(BUFFER_STRING, client.name)
             await send_buffer_all(main_buffer_tcp, writer)
-
-            main_buffer_tcp.seek_begin()
-            main_buffer_tcp.write_action(ClientTCP.LobbyPlayers)
-
-            for name in client.lobby.client_names():
-                main_buffer_tcp.write(BUFFER_STRING, name)
-
-            await send_buffer_all(main_buffer_tcp, writer, to_me = True)
+            await client.lobby.update(writer, to_me = True)
 
         case ClientTCP.Heartbeat:
             pass
@@ -152,15 +182,17 @@ async def handle_buffer(buffer, writer: asyncio.StreamWriter):
             main_buffer_tcp.write(BUFFER_U64, lobby.seed)
             await send_buffer(main_buffer_tcp, writer)
 
-
         case ClientTCP.LeaveLobby:
             client = clients[int.from_bytes(buffer[18:26], "little")]
-            client_id = client.lobby.clients.index(client)
+            lobby = client.lobby
+            client_id = lobby.clients.index(client)
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(ClientTCP.PlayerDisconnect)
             main_buffer_tcp.write(BUFFER_U8, client_id + 1)
             await send_buffer_all(main_buffer_tcp, writer)
-            client.free()
+            lobby.remove(client)
+            await lobby.update(writer)
+            print(lobby)
 
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(data_id)
@@ -178,7 +210,10 @@ async def handle_buffer(buffer, writer: asyncio.StreamWriter):
 
         case ClientTCP.LobbyStart:
             client = clients[int.from_bytes(buffer[18:26], "little")]
-            client.lobby.started = True
+            lobby = client.lobby
+            lobby.started = True
+            await lobby.update(writer, to_me = True)
+
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(data_id)
             await send_buffer_all(main_buffer_tcp, writer, to_me = True)
@@ -200,7 +235,7 @@ async def connect_client(writer: asyncio.StreamWriter, reader: asyncio.StreamRea
     main_buffer_tcp.write_action(ClientTCP.ReceiveName)
     await send_buffer(main_buffer_tcp, writer)
 
-    buffer = await asyncio.wait_for(reader.read(BUFFER_SIZE), 12)
+    buffer = await reader.read(BUFFER_SIZE)
     client = clients[int.from_bytes(buffer[18:26], "little")]
     client.name = buffer[26:].decode()
 
@@ -210,24 +245,18 @@ async def connect_client(writer: asyncio.StreamWriter, reader: asyncio.StreamRea
 async def disconnect_client(writer: asyncio.StreamWriter):
     for spot, client in clients.items():
         if client.writer != None and client.writer is writer:
-            if client.lobby != None:
+            lobby = client.lobby
+
+            if lobby != None:
                 # Send the disconnecting player to everyone else in the lobby
-                client_id = client.lobby.clients.index(client)
+                client_id = lobby.clients.index(client)
                 main_buffer_tcp.seek_begin()
                 main_buffer_tcp.write_action(ClientTCP.PlayerDisconnect)
                 main_buffer_tcp.write(BUFFER_U8, client_id + 1)
                 await send_buffer_all(main_buffer_tcp, writer)
+                lobby.remove(client)
+                await lobby.update(writer)
 
-                # Update the player names for everyone else in the lobby
-                main_buffer_tcp.seek_begin()
-                main_buffer_tcp.write_action(ClientTCP.LobbyPlayers)
-
-                for name in client.lobby.client_names():
-                    main_buffer_tcp.write(BUFFER_STRING, name)
-
-                await send_buffer_all(main_buffer_tcp, writer)
-
-            client.free()
             print(f"Client disconnected: {client}")
             del clients[spot]
             break
@@ -254,13 +283,13 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         await connect_client(writer, reader)
 
         while True:
-            buffer = await asyncio.wait_for(reader.read(BUFFER_SIZE), 12)
+            buffer = await reader.read(BUFFER_SIZE)
 
             if buffer == b"" or not buffer:
                 break
 
             await handle_buffer(buffer, writer)
-    except (ConnectionError, TimeoutError):
+    except ConnectionError:
         pass
 
     # Client has left the server, disconnect

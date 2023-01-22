@@ -7,47 +7,6 @@ HANDSHAKE_BEGIN = b"GM:Studio-Connect\x00" # Server
 HANDSHAKE_ENSURE = b"\xBE\xBA\xFE\xCA\x0B\xB0\xAD\xDE" # Client
 HANDSHAKE_RESPONSE = b"\xAD\xBE\xAF\xDE\xEB\xBE\x0D\xF0\x0C\x00\x00\x00" # Server
 
-class Lobby():
-    def __init__(self, name, password):
-        self.name = name
-        self.password = password
-        self.clients = [None] * 4
-        self.started = False
-        self.seed = random.randint(0, sys.maxsize)
-
-
-    def client_names(self):
-        names = []
-
-        for c in self.clients:
-            names.append((c.name if c is not None else "") + "\x00")
-
-        return names
-
-
-    def remove(self, c):
-        global lobbies
-
-        index = self.clients.index(c)
-
-        if index != -1:
-            del self.clients[index]
-            self.clients.append(None)
-
-        if self.clients.count(None) == len(self.clients):
-            self.delete()
-
-    
-    def delete(self):
-        for spot, lobby in lobbies.items():
-            if self is lobby:
-                del lobbies[spot]
-                break
-
-
-    def __repr__(self):
-        return f"(Name: {repr(self.name)} | Password: {repr(self.password)} | Clients [{len(self.clients)}]: {self.clients})"
-
 
 clients = {}
 client_count = 1
