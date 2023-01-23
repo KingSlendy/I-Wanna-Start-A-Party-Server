@@ -25,12 +25,23 @@ class Lobby():
         self.seed = random.randint(0, sys.maxsize)
 
 
+    def packet(self):
+        return f"{self.name}|{(self.password != HASH_EMPTY_PASSWORD)}|{len(self.clients) - self.clients.count(None)}|{self.started}."
+
+
     async def update(self, writer: asyncio.StreamWriter, to_me = False):
         main_buffer_tcp.seek_begin()
         main_buffer_tcp.write_action(ClientTCP.LobbyUpdate)
 
-        for c in self.clients:
-            main_buffer_tcp.write(BUFFER_STRING, (c.name if c is not None else "") + "\x00")
+        for i, c in enumerate(self.clients):
+            name = ""
+
+            if c is not None:
+                name = c.name
+            elif self.started:
+                name = f"CPU {i + 1}"
+
+            main_buffer_tcp.write(BUFFER_STRING, name + "\x00")
 
         await send_buffer_all(main_buffer_tcp, writer, to_me = to_me)
 
@@ -179,7 +190,7 @@ async def handle_buffer(buffer, writer: asyncio.StreamWriter):
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(data_id)
             main_buffer_tcp.write(BUFFER_U8, state)
-            main_buffer_tcp.write(BUFFER_U64, lobby.seed)
+            main_buffer_tcp.write(BUFFER_U64, lobby.seed if state == 1 else 0)
             await send_buffer(main_buffer_tcp, writer)
 
         case ClientTCP.LeaveLobby:
@@ -203,7 +214,7 @@ async def handle_buffer(buffer, writer: asyncio.StreamWriter):
             main_buffer_tcp.write_action(data_id)
 
             for lobby in lobbies.values():
-                main_buffer_tcp.write(BUFFER_STRING, f"{lobby.name}|{(lobby.password != HASH_EMPTY_PASSWORD)}|{len(lobby.clients) - lobby.clients.count(None)}|{lobby.started}.")
+                main_buffer_tcp.write(BUFFER_STRING, lobby.packet())
 
             main_buffer_tcp.write(BUFFER_STRING, "null")
             await send_buffer(main_buffer_tcp, writer)
