@@ -13,7 +13,7 @@ class Client():
 
     
     def __repr__(self):
-        return f"[Address: {self.address} | Name: {self.name}]"
+        return f"{{Address: {self.address} | Name: {self.name}}}"
 
 
 class Lobby():
@@ -67,7 +67,7 @@ class Lobby():
 
 
     def __repr__(self):
-        return f"(Name: {repr(self.name)} | Password: {repr(self.password)} | Clients [{len(self.clients)}]: {self.clients})"
+        return f"(Name: {repr(self.name)} | Password: {repr(self.password)} | Clients: {self.clients})"
 
 
 class ClientTCP(IntEnum):
@@ -113,14 +113,16 @@ async def send_buffer(buffer, writer: asyncio.StreamWriter, sanity = True, heade
     if not isinstance(buffer, bytes):
         buffer = bytes(buffer)
 
-    writer.write(buffer)
-    await writer.drain()
+    try:
+        writer.write(buffer)
+        await writer.drain()
+    except ConnectionError:
+        pass
 
 
 async def handle_buffer(buffer, writer: asyncio.StreamWriter):
     global clients, lobbies, lobby_count
 
-    #print(buffer)
     data_id = int.from_bytes(buffer[16:18], "little")
 
     match data_id:
@@ -158,8 +160,8 @@ async def handle_buffer(buffer, writer: asyncio.StreamWriter):
                 lobbies[lobby_count] = lobby
                 lobby.clients[0] = client
                 client.lobby = lobby
-                #print(lobbies)
                 lobby_count += 1
+                print(f"Lobby created: {lobby}")
 
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(data_id)
@@ -203,7 +205,6 @@ async def handle_buffer(buffer, writer: asyncio.StreamWriter):
             await send_buffer_all(main_buffer_tcp, writer)
             lobby.remove(client)
             await lobby.update(writer)
-            print(lobby)
 
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(data_id)
@@ -276,20 +277,20 @@ async def disconnect_client(writer: asyncio.StreamWriter):
 async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     global clients, lobbies
 
-    # Handshake start
-    writer.write(HANDSHAKE_BEGIN)
-    await writer.drain()
-    buffer = await reader.read(BUFFER_SIZE)
-
-    if buffer[:8] != HANDSHAKE_ENSURE:
-        print(f"Unexpected handshake message: {buffer[:8]}\nExpected: {HANDSHAKE_ENSURE}")
-        writer.close()
-        return
-
-    # Handshake response
-    await send_buffer(HANDSHAKE_RESPONSE, writer, header = False)
-
     try:
+        # Handshake start
+        writer.write(HANDSHAKE_BEGIN)
+        await writer.drain()
+        buffer = await reader.read(BUFFER_SIZE)
+
+        if buffer[:8] != HANDSHAKE_ENSURE:
+            print(f"Unexpected handshake message: {buffer[:8]}\nExpected: {HANDSHAKE_ENSURE}")
+            writer.close()
+            return
+
+        # Handshake response
+        await send_buffer(HANDSHAKE_RESPONSE, writer, header = False)
+
         # Send back the master ID to the connected client
         await connect_client(writer, reader)
 
