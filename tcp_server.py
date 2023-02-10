@@ -49,11 +49,12 @@ class Lobby():
     def remove(self, c):
         global lobbies
 
-        index = self.clients.index(c)
-
-        if index != -1:
+        try:
+            index = self.clients.index(c)
             del self.clients[index]
             self.clients.append(None)
+        except ValueError:
+            pass
 
         if self.clients.count(None) == len(self.clients):
             self.delete()
