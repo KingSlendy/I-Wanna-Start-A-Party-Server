@@ -222,7 +222,7 @@ async def handle_buffer(buffer, writer: asyncio.StreamWriter):
             main_buffer_tcp.seek_begin()
             main_buffer_tcp.write_action(data_id)
 
-            for lobby in lobbies.values():
+            for lobby in sorted(lobbies.values(), key = lambda x: x.started and x.clients.count(None) < 4):
                 main_buffer_tcp.write(BUFFER_STRING, lobby.packet())
 
             main_buffer_tcp.write(BUFFER_STRING, "null")
@@ -283,7 +283,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         # Handshake start
         writer.write(HANDSHAKE_BEGIN)
         await writer.drain()
-        buffer = await reader.read(BUFFER_SIZE)
+        buffer = await asyncio.wait_for(reader.read(BUFFER_SIZE), timeout = 12)
 
         if buffer[:8] != HANDSHAKE_ENSURE:
             print(f"Unexpected handshake message: {buffer[:8]}\nExpected: {HANDSHAKE_ENSURE}")
@@ -302,7 +302,10 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
             if buffer == b"" or not buffer:
                 break
 
-            await handle_buffer(buffer, writer)
+            packets = [x for x in buffer.split(BUFFER_HEADER) if x != b""]
+
+            for packet in packets:
+                await handle_buffer(BUFFER_HEADER + packet, writer)
     except (ConnectionError, TimeoutError):
         pass
 

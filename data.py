@@ -14,6 +14,7 @@ lobbies = {}
 lobby_count = 1
 
 BUFFER_SIZE = 1024
+BUFFER_HEADER = b"\xDE\xC0\xAD\xDE\x0C\x00\x00\x00"
 # HEADER_SIZE = 12
 FAILCHECK_ID = 121
 
@@ -78,7 +79,7 @@ def header_buffer_add(buffer):
         buffer = bytes(buffer)
 
     buffer_size = len(buffer).to_bytes(4, "little")
-    header = bytes.fromhex("DEC0ADDE0C000000") + buffer_size
+    header = BUFFER_HEADER + buffer_size
     return header + buffer
 
 

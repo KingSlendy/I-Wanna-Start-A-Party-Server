@@ -1,4 +1,4 @@
-import asyncio, threading, tcp_server, udp_server, ver_server, test
+import asyncio, threading, tcp_server, udp_server, ver_server
 
 async def main():
     thread = threading.Thread(target = udp_server.start_server)
