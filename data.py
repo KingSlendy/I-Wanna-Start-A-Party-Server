@@ -2,7 +2,6 @@ import random, struct, sys
 
 IP = ""
 MAIN_PORT = 33321
-VER_PORT = 33320
 HANDSHAKE_BEGIN = b"GM:Studio-Connect\x00" # Server
 HANDSHAKE_ENSURE = b"\xBE\xBA\xFE\xCA\x0B\xB0\xAD\xDE" # Client
 HANDSHAKE_RESPONSE = b"\xAD\xBE\xAF\xDE\xEB\xBE\x0D\xF0\x0C\x00\x00\x00" # Server
